@@ -1,0 +1,24 @@
+{
+  "name": "pinterest_ranker_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --loader ts-node/esm src/local/index.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.160",
+    "@types/node": "^25.0.9",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.970.0",
+    "@aws-sdk/lib-dynamodb": "^3.971.0",
+    "jose": "^6.1.3"
+  }
+}
