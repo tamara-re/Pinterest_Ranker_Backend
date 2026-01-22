@@ -1,8 +1,8 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb } from "../lib/ddb.js";
-import { parseCookies, verifyAppJwt } from "../lib/auth.js";
-import { corsHeaders, json } from "../lib/http.js";
+import { ddb } from "../lib/ddb";
+import { parseCookies, verifyAppJwt } from "../lib/auth";
+import { corsHeaders, json } from "../lib/http";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const USERS_TABLE = process.env.USERS_TABLE!;

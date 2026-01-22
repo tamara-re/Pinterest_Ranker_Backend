@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { buildCookie } from "../lib/auth.js";
-import { corsHeaders, json } from "../lib/http.js";
+import { buildCookie } from "../lib/auth";
+import { corsHeaders, json } from "../lib/http";
 
 export const handler: APIGatewayProxyHandlerV2 = async () => {
   const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN!;

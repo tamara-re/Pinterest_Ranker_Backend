@@ -1,0 +1,203 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: my-app-api (Pinterest OAuth + JWT + DynamoDB)
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Architectures: [x86_64]
+    Timeout: 15
+    MemorySize: 256
+
+Parameters:
+  FrontendOrigin:
+    Type: String
+    Default: "http://localhost:5173"
+  AppOrigin:
+    Type: String
+    Default: "http://localhost:5173"
+  JwtSecret:
+    Type: String
+    NoEcho: true
+  PinterestClientId:
+    Type: String
+    NoEcho: true
+  PinterestClientSecret:
+    Type: String
+    NoEcho: true
+  PinterestRedirectUri:
+    Type: String
+    Default: "http://localhost:3000/auth/pinterest/callback"
+  CookieDomain:
+    Type: String
+    Default: ""
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref FrontendOrigin
+        AllowMethods: ["GET", "POST", "OPTIONS"]
+        AllowHeaders: ["Content-Type", "Authorization"]
+        AllowCredentials: true
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  OAuthStatesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: OAuthStates
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: state
+          AttributeType: S
+      KeySchema:
+        - AttributeName: state
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  PinterestStartFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handlers/auth/pinterestStart.ts
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+        Format: cjs
+        Platform: node
+    Properties:
+      Handler: index.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          OAUTH_STATES_TABLE: !Ref OAuthStatesTable
+          PINTEREST_CLIENT_ID: !Ref PinterestClientId
+          PINTEREST_REDIRECT_URI: !Ref PinterestRedirectUri
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OAuthStatesTable
+      Events:
+        Route:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /auth/pinterest/start
+            Method: GET
+
+  PinterestCallbackFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handlers/auth/pinterestCallback.ts
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+        Format: cjs
+        Platform: node
+    Properties:
+      Handler: index.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref UsersTable
+          OAUTH_STATES_TABLE: !Ref OAuthStatesTable
+          JWT_SECRET: !Ref JwtSecret
+          FRONTEND_ORIGIN: !Ref FrontendOrigin
+          APP_ORIGIN: !Ref AppOrigin
+          COOKIE_DOMAIN: !Ref CookieDomain
+          PINTEREST_CLIENT_ID: !Ref PinterestClientId
+          PINTEREST_CLIENT_SECRET: !Ref PinterestClientSecret
+          PINTEREST_REDIRECT_URI: !Ref PinterestRedirectUri
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OAuthStatesTable
+      Events:
+        Route:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /auth/pinterest/callback
+            Method: GET
+
+  MeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handlers/me.ts
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+        Format: cjs
+        Platform: node
+    Properties:
+      Handler: index.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref UsersTable
+          JWT_SECRET: !Ref JwtSecret
+          FRONTEND_ORIGIN: !Ref FrontendOrigin
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        Route:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /me
+            Method: GET
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handlers/logout.ts
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+        Format: cjs
+        Platform: node
+    Properties:
+      Handler: index.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          FRONTEND_ORIGIN: !Ref FrontendOrigin
+          COOKIE_DOMAIN: !Ref CookieDomain
+      Events:
+        Route:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /logout
+            Method: POST
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"

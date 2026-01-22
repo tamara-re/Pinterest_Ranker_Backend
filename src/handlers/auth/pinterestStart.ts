@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb } from "../../lib/ddb.js";
-import { randomState } from "../../lib/auth.js";
+import { ddb } from "../../lib/ddb";
+import { randomState } from "../../lib/auth";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const {
